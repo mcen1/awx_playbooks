@@ -1,0 +1,58 @@
+---
+- name: Create Terraform workspace
+  register: local_workspace_create
+  uri:
+    url: https://{{terraform_api_url}}/organizations/{{terraform_org}}/workspaces
+    method: POST
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body: 
+      data:
+        attributes:
+          name: "{{workspace_name}}"
+          execution-mode: "{{execution_mode|default('agent')}}"
+          agent-pool-id: "{{agent_pool_id|default('apool-hb6ArLLNduSHihjd')}}"
+          structured-run-output-enabled: "{{structured_run_output_enabled|default(False)}}"
+        type: "workspaces"
+    body_format: json
+    status_code: 201
+  when: "execution_mode is not defined or execution_mode == 'agent'"
+
+- name: "Create Terraform workspace with {{execution_mode}}"
+  register: remote_workspace_create
+  uri:
+    url: https://{{terraform_api_url}}/organizations/{{terraform_org}}/workspaces
+    method: POST
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body:
+      data:
+        attributes:
+          name: "{{workspace_name}}"
+          execution-mode: "{{execution_mode}}"
+          structured-run-output-enabled: "{{structured_run_output_enabled|default(False)}}"
+        type: "workspaces"
+    body_format: json
+    status_code: 201
+  when: "execution_mode is defined and execution_mode != 'agent'"
+
+
+- name: Set workspace ID fact name
+  set_fact:
+    tf_workspace_id: "{{local_workspace_create.json.data.id}}"
+  when: "local_workspace_create.json.data.id is defined"
+
+- name: Set workspace ID fact name
+  set_fact:
+    tf_workspace_id: "{{remote_workspace_create.json.data.id}}"
+  when: "remote_workspace_create.json.data.id is defined"
+
+

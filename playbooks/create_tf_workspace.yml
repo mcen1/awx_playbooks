@@ -1,0 +1,24 @@
+---
+- name: Initial connection
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  become: False
+  vars_files:
+    - vars/terraform_staticvalues.yml
+  tasks:
+    - name: Create workspace
+      include_role:
+        name: create_tf_workspace
+    - name: Assign variables to workspace
+      include_role:
+        name: assign_tf_workspace_vars 
+    - name: Assign team to workspace
+      include_role:
+        name: add_team_to_tf_workspace 
+    - name: Assign VCS url to workspace
+      include_role:
+        name: associate_vcs_to_workspace 
+      when: "vcs_url is defined and vcs_url|length > 0"
+
+

@@ -1,0 +1,61 @@
+---
+- name: Set jmsquery fact for OAUTH purposes
+  set_fact:
+    jmesquery2: "[? attributes.\"service-provider\"==`{{vcs_provider|default('github')}}`]"
+
+
+- name: Get OAUTH clients
+  register: terraform_vcs_oauth_clients
+  uri:
+    url: "https://{{terraform_api_url}}/organizations/{{terraform_org}}/oauth-clients?page[size]=100"
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body_format: json
+    status_code: 200
+
+- name: Set relevant oauth_client fact
+  set_fact:
+    tf_oauth_client: "{{ terraform_vcs_oauth_clients.json.data | json_query(jmesquery2) }}"
+
+- name: Get OAUTH token
+  register: terraform_vcs_oauth_tokens
+  uri:
+    url: "https://{{terraform_api_url}}/oauth-clients/{{tf_oauth_client[0].id}}/oauth-tokens"
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body_format: json
+    status_code: 200
+
+- name: Associate VCS to Workspace
+  uri:
+    url: "https://{{terraform_api_url}}/organizations/{{terraform_org}}/workspaces/{{workspace_name}}"
+    method: PATCH
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body:
+      data:
+        attributes:
+          vcs-repo:
+            oauth-token-id: "{{terraform_vcs_oauth_tokens.json.data[0].id}}"
+            repository-http-url: "{{vcs_url}}"
+            branch: ""
+            service-provider: "{{vcs_provider|default('github')}}"
+            identifier: "{{vcs_url.split('.com/')[1]}}"
+        type: "workspaces"
+    body_format: json
+    status_code: 200
+

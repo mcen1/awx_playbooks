@@ -1,0 +1,2 @@
+terraform_api_url: "app.terraform.io/api/v2"
+terraform_host: "app.terraform.io"

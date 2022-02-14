@@ -1,0 +1,49 @@
+---
+- name: Set jmsquery fact
+  set_fact:
+    jmesquery: "[? attributes.name==`{{terraform_team}}`]"
+
+- name: Get teams in API
+  register: terraform_teams_from_api
+  uri:
+    url: "https://{{terraform_api_url}}/organizations/{{terraform_org}}/teams?page[size]=100"
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body_format: json
+    status_code: 200
+- name: Set relevant team fact
+  set_fact:
+    team_match: "{{ terraform_teams_from_api.json.data | json_query(jmesquery)}}"
+- name: Associate team to workspace
+  uri:
+    url: https://{{terraform_api_url}}/team-workspaces
+    method: POST
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{terraform_api_token}}"
+      Content-Type: 'application/vnd.api+json'
+      Host: "{{terraform_host}}"
+      Accept: '*/*'
+    body:
+      data:
+        type: "team-workspaces"
+        attributes:
+          access: "admin"
+          plan-outputs: "none"
+        relationships:
+          team:
+            data:
+              id: "{{team_match[0].id}}"
+              type: "teams"
+          workspace:
+            data:
+              type: "workspaces"
+              id: "{{tf_workspace_id}}"
+    body_format: json
+    status_code: 201
+
